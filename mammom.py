@@ -6,8 +6,9 @@
 __version__ = 0.1
 
 import filescript_mammom
+import queries_mammom
 
-
+queries_mammom.schoon_scherm()
 filescript_mammom.filecheck()
 filescript_mammom.menu()
 

@@ -5,12 +5,12 @@
 
 __version__ = 0.1
 
-import sqlite3, csv, platform
+import sqlite3, csv, platform, os
 import filescript_mammom
 
 
-def geimporteerde_bestanden():
-    #Geef een overzicht van de geimporteerde bestanden
+def geimporteerde_bestanden(): #Geef een overzicht van de geimporteerde bestanden
+    
     connection = sqlite3.connect('mammom.sqlite')
     cursor = connection.cursor()
     rows = cursor.execute('''
@@ -22,14 +22,14 @@ def geimporteerde_bestanden():
     )
     
     for row in rows:
-        print('\t{}'.format(row[0]))
+        print('\t{}'.format(row[0][7:]))
     connection.commit()
     connection.close()
     print()
     filescript_mammom.menu()
 
-def lijst_rekeningnummers():
-    #Geef een overzicht van de geimporteerde bestanden
+def lijst_rekeningnummers(): #Geef een overzicht van de geimporteerde bestanden
+    schoon_scherm()
     connection = sqlite3.connect('mammom.sqlite')
     cursor = connection.cursor()
     rows = cursor.execute('''
@@ -48,8 +48,8 @@ def lijst_rekeningnummers():
     connection.close()
     filescript_mammom.menu()
 
-def lijst_rekeningnummers_zonder_menu():
-    #Geef een overzicht van de geimporteerde bestanden
+def lijst_rekeningnummers_zonder_menu(): #Geef een overzicht van de geimporteerde bestanden
+    
     connection = sqlite3.connect('mammom.sqlite')
     cursor = connection.cursor()
     rows = cursor.execute('''
@@ -65,57 +65,40 @@ def lijst_rekeningnummers_zonder_menu():
     connection.commit()
     connection.close()
 
-def overeenkomstige_transacties():
+def overeenkomstige_transacties(): #Kijk in de tegenrekening kolom of er rekeningnummers overeenkomen met de tegenrekening kolom van de andere rekening.
     connection = sqlite3.connect('mammom.sqlite')
     cursor = connection.cursor()
-    
+    export=export_folder()
+    schoon_scherm()
 
-    keuze1 = input('Kies nummer: ')
-    keuze2 = input('Kies nummer: ')
+    rekening1=keuze()
+    rekening2=keuze()
 
-    query = '''
-    SELECT
-
-    rekeningnummer
-
-    from
-    rekeningnummers
-
-
-    where
-    rowid like "%" || ? || "%" '''
-
-    rekening1 = cursor.execute(query, keuze1).fetchone()
-    rekening1 = str(rekening1)
-    rekening1 = rekening1[2:-3]
-
-    rekening2 = cursor.execute(query, keuze2).fetchone()   
-    rekening2 = str(rekening2)
-    rekening2 = rekening2[2:-3]
     try:
         data = cursor.execute('''SELECT distinct*  FROM '''+rekening1+'''
     INNER JOIN '''+rekening2+''' ON '''+rekening1+'''.Tegenrekening = '''+rekening2+'''.Tegenrekening
     where '''+rekening1+'''.Tegenrekening != "N/A"
 
-    UNION ALL
+    UNION
 
     SELECT distinct *  FROM '''+rekening2+'''
     INNER JOIN '''+rekening1+''' ON '''+rekening2+'''.Tegenrekening = '''+rekening1+'''.Tegenrekening
     where '''+rekening2+'''.Tegenrekening != "N/A";''')
     
-        with open('overeenkomsten_'+rekening1+'_'+rekening2+'''.csv''', 'w+') as f:
+        with open(export+'overeenkomsten_'+rekening1+'_'+rekening2+'''.csv''', 'w+') as f:
             writer = csv.writer(f)
             writer.writerow(['Unieke_transactiecode', 'Rekeningnummer', 'Rekenhouder_of_tenaamgestelde', 'Pasvolgnummer', 'Transactiedatum', 'Tijdstip_transactie', 'Tijdzone_transactie', 'Boekdatum', 'Valutadatum', 'Type_transactie', 'BIC_code_transactie', 'Omschrijving', 'Transactiebedrag_Debet', 'Transactiebedrag_Credit', 'Valuta_transactie', 'Tegenrekening', 'Tenaamstelling_tegenrekening'])
             writer.writerows(data)
         filescript_mammom.menu()
 
     except sqlite3.OperationalError:
+        schoon_scherm()
         print()
         print('fout in de zoekvraag probeer opnieuw')
 
         filescript_mammom.menu()
 
-def keuze():
+def keuze(): #Genereer een lijst met geimporteerde rekeningnummers en vraag de gebruiker om een te kiezen voor verdere functies
     connection = sqlite3.connect('mammom.sqlite')
     cursor = connection.cursor()
     query = '''
@@ -132,16 +115,31 @@ def keuze():
 
     try:
         keuze1 = input('Kies nummer: ')
-        rekening = cursor.execute(query, keuze1).fetchone()
-        rekening = str(rekening)
-        rekening = rekening[2:-3]
-        return rekening
+        if keuze1 == "":
+            schoon_scherm()
+            print()
+            print('vul aub een waarde in')
+            filescript_mammom.menu()
+        else:
+            try:
+                int(keuze1)
+                rekening = cursor.execute(query, keuze1).fetchone()
+                rekening = str(rekening)
+                rekening = rekening[2:-3]
+                return rekening
+            except:
+                schoon_scherm()
+                print()
+                print(keuze1+' is geen geldige keuze, probeer opnieuw')
+                filescript_mammom.menu()
+            
     except sqlite3.OperationalError:
+        schoon_scherm()
         print()
         print('foutieve invoer probeer opnieuw')
         filescript_mammom.menu()
 
-def geldstroom():
+def geldstroom(): #Maak een overzicht van transacties tussen 2 gekozen rekeningnummers en exporteer de resultaten naar een csv
     
     rekening1=keuze()
     rekening2=keuze()
@@ -169,7 +167,7 @@ def geldstroom():
 
         filescript_mammom.menu()
 
-def buitenlandse_transacties():
+def buitenlandse_transacties(): #Maak een overzicht met transacties naar niet nederlandse rekeningnummers en exporteer resultaat naar een csv
     connection = sqlite3.connect('mammom.sqlite')
     cursor = connection.cursor()
     
@@ -204,7 +202,7 @@ def buitenlandse_transacties():
 
         filescript_mammom.menu()
 
-def top_ontvangen():
+def top_ontvangen(): #Maak een overzicht van de 10 transacties met de grootste waarde van ontvangen bedragen
     connection = sqlite3.connect('mammom.sqlite')
     cursor = connection.cursor()
     
@@ -236,7 +234,7 @@ def top_ontvangen():
 
         filescript_mammom.menu()
 
-def top_uitgaand():
+def top_uitgaand(): #Maak een overzicht van de 10 transacties met de grootste waarde van uitgaande bedragen
     connection = sqlite3.connect('mammom.sqlite')
     cursor = connection.cursor()
     
@@ -254,9 +252,10 @@ def top_uitgaand():
 	transactiebedrag_debet desc
 	limit 10''')
      
-
+  
     
         with open(export+'hoogste_uitgaand_'+rekening1+'''.csv''', 'w+') as f:
+            
             writer = csv.writer(f)
             writer.writerow(['Unieke_transactiecode', 'Rekeningnummer', 'Rekenhouder_of_tenaamgestelde', 'Pasvolgnummer', 'Transactiedatum', 'Tijdstip_transactie', 'Tijdzone_transactie', 'Boekdatum', 'Valutadatum', 'Type_transactie', 'BIC_code_transactie', 'Omschrijving', 'Transactiebedrag_Debet', 'Transactiebedrag_Credit', 'Valuta_transactie', 'Tegenrekening', 'Tenaamstelling_tegenrekening'])
             writer.writerows(data)
@@ -268,9 +267,20 @@ def top_uitgaand():
 
         filescript_mammom.menu()
 
-def export_folder():
+def export_folder(): #controleer of systeem een windows of unix based systeem om zo te kijken welke kant de / uit moet gaan
     if platform.system() == 'Windows':
         export=('export\\')
     else:
         export=('export/')
     return export
+
+def schoon_scherm(): #controleer of systeem een windows of unix based systeem is om zo te kijken hoe het sche
+    if platform.system() == 'Windows':
+        scherm= os.system("cls")
+    else:
+        schem= os.system("clear")
+    
+
+
+    
+    
